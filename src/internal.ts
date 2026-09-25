@@ -29,6 +29,40 @@ export interface DriverOptions {
 
 export type DriverFactory = (options: DriverOptions) => RenderDriver;
 
+let actScopes = 0;
+let previousActEnvironment: PropertyDescriptor | undefined;
+
+export function enterActEnvironment(): void {
+  if (actScopes === 0) {
+    previousActEnvironment = Object.getOwnPropertyDescriptor(
+      globalThis,
+      'IS_REACT_ACT_ENVIRONMENT',
+    );
+    Object.defineProperty(globalThis, 'IS_REACT_ACT_ENVIRONMENT', {
+      configurable: true,
+      enumerable: true,
+      writable: true,
+      value: true,
+    });
+  }
+  actScopes += 1;
+}
+
+export function leaveActEnvironment(): void {
+  actScopes -= 1;
+  if (actScopes !== 0) return;
+  if (previousActEnvironment === undefined) {
+    Reflect.deleteProperty(globalThis, 'IS_REACT_ACT_ENVIRONMENT');
+  } else {
+    Object.defineProperty(
+      globalThis,
+      'IS_REACT_ACT_ENVIRONMENT',
+      previousActEnvironment,
+    );
+  }
+  previousActEnvironment = undefined;
+}
+
 export function wrap(
   element: ReactNode,
   wrappers: readonly ElementType[],

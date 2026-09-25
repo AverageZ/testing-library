@@ -48,6 +48,7 @@ const common = Object.fromEntries(
   await Promise.all(
     [
       'vitest',
+      'fast-check',
       'jsdom',
       'typescript',
       '@types/node',

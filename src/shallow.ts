@@ -70,7 +70,7 @@ function instrument(type: ElementType): ElementType {
         break;
       }
       case Symbol.for('react.forward_ref'): {
-        const render = exotic.render;
+        const { render } = exotic;
         if (!render) throw new TypeError('Invalid forwardRef component');
         result = React.forwardRef<unknown, PropRecord>((props, ref) =>
           capture(render(props, ref), props),
@@ -118,7 +118,7 @@ function inspectChildren(value: ReactNode): {
     ) {
       text += String(child);
     } else if (React.isValidElement<PropRecord>(child)) {
-      const type = child.type;
+      const { type } = child;
       if (type === React.Fragment) {
         const inner = inspectChildren(child.props['children'] as ReactNode);
         children.push(...inner.children);
@@ -146,6 +146,8 @@ export function createShallowDriver(options: DriverOptions): RenderDriver {
   const root = createShallowRoot();
   const Target = instrument(options.component);
   let disposed = false;
+  let currentProps = options.props;
+  let currentWrappers = options.wrappers;
   const driver: RenderDriver = {
     mode: 'shallow',
     inspect() {
@@ -163,12 +165,14 @@ export function createShallowDriver(options: DriverOptions): RenderDriver {
     },
     render(props, wrappers) {
       if (disposed) throw new Error('Cannot render an unmounted subject');
+      currentProps = props;
+      currentWrappers = wrappers;
       const target = React.createElement(Target, props);
       root.render(wrap(target, wrappers, React.createElement));
     },
     flush() {
       if (disposed) throw new Error('Cannot flush an unmounted subject');
-      root.flush();
+      driver.render(currentProps, currentWrappers);
     },
     async act(callback) {
       if (disposed) throw new Error('Cannot update an unmounted subject');

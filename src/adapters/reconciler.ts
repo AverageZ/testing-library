@@ -1,5 +1,6 @@
 import * as React from 'react';
 import type { ReactNode } from 'react';
+import { enterActEnvironment, leaveActEnvironment } from '../internal.js';
 import type { PropRecord } from '../internal.js';
 
 export interface HostNode {
@@ -261,7 +262,7 @@ export function createShallowRoot(): {
           );
   const checkError = (): void => {
     if (failure) {
-      const error = failure.error;
+      const { error } = failure;
       failure = undefined;
       throw error;
     }
@@ -281,29 +282,19 @@ export function createShallowRoot(): {
     } while (reconciler.flushPassiveEffects());
     checkError();
   };
-  const withEnvironment = <T>(callback: () => T): T => {
-    const globals = globalThis as typeof globalThis & {
-      IS_REACT_ACT_ENVIRONMENT?: boolean;
-    };
-    const previous = globals.IS_REACT_ACT_ENVIRONMENT;
-    globals.IS_REACT_ACT_ENVIRONMENT = true;
-    try {
-      return callback();
-    } finally {
-      if (previous === undefined) delete globals.IS_REACT_ACT_ENVIRONMENT;
-      else globals.IS_REACT_ACT_ENVIRONMENT = previous;
-    }
-  };
   const sync = (callback: () => void): void => {
     const act = actFunction();
-    if (act)
-      withEnvironment(() => {
+    if (act) {
+      enterActEnvironment();
+      try {
         void act(() => {
           callback();
           drain();
         });
-      });
-    else {
+      } finally {
+        leaveActEnvironment();
+      }
+    } else {
       callback();
       drain();
     }
@@ -329,19 +320,14 @@ export function createShallowRoot(): {
     async act(callback) {
       const act = actFunction();
       if (act) {
-        const globals = globalThis as typeof globalThis & {
-          IS_REACT_ACT_ENVIRONMENT?: boolean;
-        };
-        const previous = globals.IS_REACT_ACT_ENVIRONMENT;
-        globals.IS_REACT_ACT_ENVIRONMENT = true;
+        enterActEnvironment();
         try {
           await act(async () => {
             await callback();
             drain();
           });
         } finally {
-          if (previous === undefined) delete globals.IS_REACT_ACT_ENVIRONMENT;
-          else globals.IS_REACT_ACT_ENVIRONMENT = previous;
+          leaveActEnvironment();
         }
       } else {
         await callback();

@@ -1,0 +1,17 @@
+{
+  "rules": {
+    "eslint/prefer-destructuring": [
+      "error",
+      {
+        "VariableDeclarator": {
+          "array": false,
+          "object": true
+        },
+        "AssignmentExpression": {
+          "array": false,
+          "object": false
+        }
+      }
+    ]
+  }
+}

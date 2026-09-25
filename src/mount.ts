@@ -2,7 +2,7 @@ import * as React from 'react';
 import type { ElementType, ReactNode } from 'react';
 import { inspectDOMRoot, selectDOMReactVersion } from './adapters/dom.js';
 import type { DOMReactVersion } from './adapters/dom.js';
-import { wrap } from './internal.js';
+import { enterActEnvironment, leaveActEnvironment, wrap } from './internal.js';
 import type { DriverOptions, PropRecord, RenderDriver } from './internal.js';
 
 type ReactAct = (callback: () => void | Promise<void>) => PromiseLike<void>;
@@ -68,51 +68,20 @@ function loadRuntime(): DOMRuntime {
   return { version, reactAct, legacy, concurrent, client };
 }
 
-let actScopes = 0;
-let previousActEnvironment: PropertyDescriptor | undefined;
-
-function enterActEnvironment(): void {
-  if (actScopes === 0) {
-    previousActEnvironment = Object.getOwnPropertyDescriptor(
-      globalThis,
-      'IS_REACT_ACT_ENVIRONMENT',
-    );
-    Object.defineProperty(globalThis, 'IS_REACT_ACT_ENVIRONMENT', {
-      configurable: true,
-      enumerable: true,
-      writable: true,
-      value: true,
-    });
-  }
-  actScopes += 1;
-}
-
-function leaveActEnvironment(): void {
-  actScopes -= 1;
-  if (actScopes !== 0) return;
-  if (previousActEnvironment === undefined) {
-    Reflect.deleteProperty(globalThis, 'IS_REACT_ACT_ENVIRONMENT');
-  } else {
-    Object.defineProperty(
-      globalThis,
-      'IS_REACT_ACT_ENVIRONMENT',
-      previousActEnvironment,
-    );
-  }
-  previousActEnvironment = undefined;
-}
-
 export function createMountDriver(options: DriverOptions): RenderDriver {
   if (typeof document === 'undefined' || document.body === null) {
     throw new Error(
       'mount() requires a DOM document with a body. Configure jsdom before mounting.',
     );
   }
-  const { version, reactAct, legacy, concurrent, client } = (cachedRuntime ??=
+  const { version, reactAct, legacy, client } = (cachedRuntime ??=
     loadRuntime());
   const container = document.createElement('div');
   let root: DOMRoot | null = null;
   let unmounted = false;
+  let currentProps = options.props;
+  let currentWrappers = options.wrappers;
+  let { initialElement } = options;
   const pendingErrors: unknown[] = [];
 
   function throwPendingErrors(): void {
@@ -144,12 +113,13 @@ export function createMountDriver(options: DriverOptions): RenderDriver {
     },
     render(props: PropRecord, wrappers: readonly ElementType[]): void {
       if (unmounted) throw new Error('Cannot render an unmounted subject.');
-      const element = wrap(
-        props === options.props && options.initialElement
-          ? options.initialElement
-          : React.createElement(options.component, props),
-        wrappers,
-        (type, providerProps) => React.createElement(type, providerProps),
+      currentProps = props;
+      currentWrappers = wrappers;
+      const target =
+        initialElement ?? React.createElement(options.component, props);
+      initialElement = undefined;
+      const element = wrap(target, wrappers, (type, providerProps) =>
+        React.createElement(type, providerProps),
       );
       sync(() => {
         if (legacy !== null) legacy.render(element, container);
@@ -158,10 +128,7 @@ export function createMountDriver(options: DriverOptions): RenderDriver {
       });
     },
     flush(): void {
-      if (!unmounted)
-        sync(() => {
-          concurrent?.flushSync(() => {});
-        });
+      if (!unmounted) driver.render(currentProps, currentWrappers);
     },
     async act(callback: () => void | Promise<void>): Promise<void> {
       if (unmounted) throw new Error('Cannot act on an unmounted subject.');

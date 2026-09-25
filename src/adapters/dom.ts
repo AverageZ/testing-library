@@ -97,7 +97,7 @@ function hostElement(fiber: Fiber): Element | null {
 function firstDOM(fiber: Fiber, version: DOMReactVersion): Element | null {
   if (skipped(fiber, version)) return null;
   if (isHost(fiber, version)) return hostElement(fiber);
-  for (let child = fiber.child; child !== null; child = child.sibling) {
+  for (let { child } = fiber; child !== null; child = child.sibling) {
     const element = firstDOM(child, version);
     if (element !== null) return element;
   }
@@ -115,7 +115,7 @@ function committedText(fiber: Fiber, version: DOMReactVersion): string {
   if (isHost(fiber, version) && fiber.child === null)
     return hostElement(fiber)?.textContent ?? '';
   let text = '';
-  for (let child = fiber.child; child !== null; child = child.sibling) {
+  for (let { child } = fiber; child !== null; child = child.sibling) {
     text += committedText(child, version);
   }
   return text;
