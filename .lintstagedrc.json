@@ -1,0 +1,8 @@
+{
+  "{src,tests,scripts}/**/*.{ts,tsx,js,jsx,mjs,cts,mts}": [
+    "oxlint --fix",
+    "oxfmt"
+  ],
+  "{src,tests,scripts}/**/*.{css,html,json}": "oxfmt",
+  "*.{json,ts}": "oxfmt"
+}

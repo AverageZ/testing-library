@@ -35,7 +35,9 @@
     "lint": "oxlint src tests scripts",
     "lint:fix": "oxlint --fix src tests scripts",
     "format": "oxfmt src tests scripts *.json *.ts",
-    "format:check": "oxfmt --check src tests scripts *.json *.ts"
+    "format:check": "oxfmt --check src tests scripts *.json *.ts",
+    "prepare": "husky",
+    "pre-commit": "lint-staged"
   },
   "peerDependencies": {
     "react": "^17.0.2 || ^18.2.0 || >=19.0.0 <19.4.0",
@@ -48,7 +50,9 @@
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
     "esbuild": "^0.25.0",
+    "husky": "^9.1.7",
     "jsdom": "^26.1.0",
+    "lint-staged": "^17.5.1",
     "oxfmt": "^0.65.0",
     "oxlint": "^1.85.0",
     "react": "19.3.0",
