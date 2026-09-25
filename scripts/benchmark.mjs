@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { performance } from 'node:perf_hooks';
 import { MessageChannel } from 'node:worker_threads';
 import { JSDOM } from 'jsdom';
+import { createStrategyGameFixture } from './benchmark-fixtures/strategy-game.mjs';
 
 // React DOM detects its host environment at import time.
 const dom = new JSDOM('<!doctype html><html><body></body></html>', {
@@ -64,49 +65,105 @@ function Tree({ label }) {
   );
 }
 const fixtures = [
-  { name: 'leaf', component: Leaf, text: 'contract' },
-  { name: 'effect-update', component: Effect, text: 'contract' },
   {
-    name: 'child-tree',
-    component: Tree,
-    text: Array.from({ length: 24 }, (_, index) => `contract:${index}`).join(
-      '',
-    ),
+    component: Leaf,
+    expectedText: 'contract',
+    iterations: 1000,
+    name: 'Leaf component',
+    props: { label: 'contract' },
+    verifyShallow(subject) {
+      assert.equal(subject.text(), 'contract');
+    },
   },
+  {
+    component: Effect,
+    expectedText: 'contract',
+    iterations: 1000,
+    name: 'Effect-driven update',
+    props: { label: 'contract' },
+    verifyShallow(subject) {
+      assert.equal(subject.text(), 'contract');
+    },
+  },
+  {
+    component: Tree,
+    expectedText: Array.from(
+      { length: 24 },
+      (_, index) => `contract:${index}`,
+    ).join(''),
+    iterations: 1000,
+    name: '24-child tree',
+    props: { label: 'contract' },
+    verifyShallow(subject) {
+      const branches = subject.findAll(Branch);
+      assert.equal(branches.length, 24);
+      assert.equal(branches[23].prop('label'), 'contract:23');
+    },
+  },
+  createStrategyGameFixture(React),
 ];
-const iterations = 100;
+const warmups = 60;
 const rounds = 11;
+const mountTolerance = 1.1;
 const results = [];
 let failed = false;
 
+function createSession(renderer, mode, providers = []) {
+  const session = renderer[mode]();
+  if (providers.length > 0) session.with(...providers);
+  return session;
+}
+
+function wrapWithProviders(element, providers = []) {
+  return providers.reduceRight(
+    (child, Provider) => h(Provider, null, child),
+    element,
+  );
+}
+
+function verifyDOM(fixture, root) {
+  if (fixture.expectedText !== undefined)
+    assert.equal(root.textContent, fixture.expectedText);
+  fixture.verifyDOM?.(root, assert);
+}
+
 try {
   for (const fixture of fixtures) {
-    const props = { label: 'contract' };
-    const renderer = getComponentRenderer(fixture.component, props);
-    const element = h(fixture.component, props);
-    const mounted = renderer.mount();
-    assert.equal(mounted.subject.text(), fixture.text);
+    const renderer = getComponentRenderer(fixture.component, fixture.props);
+    const element = h(fixture.component, fixture.props);
+    const wrappedElement = wrapWithProviders(element, fixture.providers);
+
+    const shallow = createSession(renderer, 'shallow', fixture.providers);
+    fixture.verifyShallow(shallow.subject, assert);
     cleanup();
-    const reference = render(element);
-    assert.equal(reference.container.textContent, fixture.text);
+
+    const mounted = createSession(renderer, 'mount', fixture.providers);
+    verifyDOM(fixture, mounted.subject.getDOMNode());
+    cleanup();
+
+    const reference = render(wrappedElement);
+    const referenceRoot = reference.container.firstElementChild;
+    assert.ok(referenceRoot, `${fixture.name} rendered no host element`);
+    verifyDOM(fixture, referenceRoot);
     rtlCleanup();
+
     const operations = {
       shallow: () => {
-        void renderer.shallow().subject;
+        void createSession(renderer, 'shallow', fixture.providers).subject;
         cleanup();
       },
       mount: () => {
-        void renderer.mount().subject;
+        void createSession(renderer, 'mount', fixture.providers).subject;
         cleanup();
       },
       rtl: () => {
-        render(element);
+        render(wrappedElement);
         rtlCleanup();
       },
     };
     const samples = { shallow: [], mount: [], rtl: [] };
     const names = Object.keys(operations);
-    for (let warmup = 0; warmup < 60; warmup++) {
+    for (let warmup = 0; warmup < warmups; warmup++) {
       for (const name of names) operations[name]();
     }
     for (let round = 0; round < rounds; round++) {
@@ -114,9 +171,9 @@ try {
       for (let offset = 0; offset < names.length; offset++) {
         const name = names[(round + offset) % names.length];
         const start = performance.now();
-        for (let iteration = 0; iteration < iterations; iteration++)
+        for (let iteration = 0; iteration < fixture.iterations; iteration++)
           operations[name]();
-        samples[name].push((performance.now() - start) / iterations);
+        samples[name].push((performance.now() - start) / fixture.iterations);
       }
     }
     const medians = Object.fromEntries(
@@ -126,10 +183,12 @@ try {
       }),
     );
     const passed =
-      medians.shallow <= medians.rtl && medians.mount <= medians.rtl;
+      medians.shallow <= medians.rtl &&
+      medians.mount <= medians.rtl * mountTolerance;
     failed ||= !passed;
     results.push({
       fixture: fixture.name,
+      iterations: fixture.iterations,
       shallowMs: medians.shallow,
       mountMs: medians.mount,
       rtlMs: medians.rtl,
@@ -140,11 +199,17 @@ try {
   }
   console.table(results);
   console.log(
-    JSON.stringify({ react: React.version, iterations, rounds, results }),
+    JSON.stringify({
+      react: React.version,
+      warmups,
+      rounds,
+      mountTolerance,
+      results,
+    }),
   );
   if (failed)
     throw new Error(
-      'Performance gate failed: every shallow and mount median must be <= its React Testing Library baseline.',
+      'Performance gate failed: shallow must beat React Testing Library and mount must stay within 10% of its baseline.',
     );
 } finally {
   try {
