@@ -1,44 +1,44 @@
-import { createElement } from "react";
-import type { ComponentProps, ElementType, ReactElement } from "react";
-import type { InspectionNode, PropRecord } from "./internal.js";
+import { createElement } from 'react';
+import type { ComponentProps, ElementType, ReactElement } from 'react';
+import type { InspectionNode, PropRecord } from './internal.js';
 
 function validateType(type: unknown): void {
-  if (typeof type === "string") {
+  if (typeof type === 'string') {
     if (!/^[a-zA-Z][a-zA-Z0-9:_-]*$/.test(type)) {
       throw new TypeError(
-        "Subject queries accept an intrinsic tag name, not a CSS selector.",
+        'Subject queries accept an intrinsic tag name, not a CSS selector.',
       );
     }
     return;
   }
 
-  if (typeof type === "function") return;
+  if (typeof type === 'function') return;
 
   const marker: unknown =
-    typeof type === "object" && type !== null && "$$typeof" in type
+    typeof type === 'object' && type !== null && '$$typeof' in type
       ? type.$$typeof
       : type;
-  if (typeof marker === "symbol") {
+  if (typeof marker === 'symbol') {
     const name = Symbol.keyFor(marker);
     if (
-      name === "react.memo" ||
-      name === "react.forward_ref" ||
-      name === "react.lazy" ||
-      name === "react.context" ||
-      name === "react.provider" ||
-      name === "react.consumer" ||
-      name === "react.fragment" ||
-      name === "react.strict_mode" ||
-      name === "react.profiler" ||
-      name === "react.suspense" ||
-      name === "react.suspense_list" ||
-      name === "react.activity"
+      name === 'react.memo' ||
+      name === 'react.forward_ref' ||
+      name === 'react.lazy' ||
+      name === 'react.context' ||
+      name === 'react.provider' ||
+      name === 'react.consumer' ||
+      name === 'react.fragment' ||
+      name === 'react.strict_mode' ||
+      name === 'react.profiler' ||
+      name === 'react.suspense' ||
+      name === 'react.suspense_list' ||
+      name === 'react.activity'
     )
       return;
   }
 
   throw new TypeError(
-    "Subject queries require a React component identity or an intrinsic tag name.",
+    'Subject queries require a React component identity or an intrinsic tag name.',
   );
 }
 
@@ -55,7 +55,7 @@ function collectMatches(
 export class Subject<P = PropRecord> {
   constructor(
     private readonly source: () => readonly InspectionNode[],
-    private readonly mode: "shallow" | "mount",
+    private readonly mode: 'shallow' | 'mount',
   ) {}
 
   /** Match a component identity or host tag, including this node; inspection rejects multiple matches. */
@@ -92,11 +92,11 @@ export class Subject<P = PropRecord> {
   }
 
   className(): string | undefined {
-    const value = this.requireNode().props["className"];
+    const value = this.requireNode().props['className'];
     if (value === undefined) return undefined;
-    if (typeof value !== "string") {
+    if (typeof value !== 'string') {
       throw new TypeError(
-        "The selected node has a className prop that is not a string.",
+        'The selected node has a className prop that is not a string.',
       );
     }
     return value;
@@ -118,13 +118,13 @@ export class Subject<P = PropRecord> {
   /** Mount only: return the first host Element represented by the selected contract. */
   getDOMNode(): Element {
     const node = this.requireNode();
-    if (this.mode === "shallow") {
+    if (this.mode === 'shallow') {
       throw new Error(
-        "getDOMNode() is unavailable for shallow rendering; use mount() instead.",
+        'getDOMNode() is unavailable for shallow rendering; use mount() instead.',
       );
     }
     if (node.dom === null) {
-      throw new Error("The selected node has no associated host DOM element.");
+      throw new Error('The selected node has no associated host DOM element.');
     }
     return node.dom;
   }
@@ -143,7 +143,7 @@ export class Subject<P = PropRecord> {
     const node = this.resolve();
     if (node === undefined) {
       throw new Error(
-        "Subject selection is empty: no matching node exists in the current render.",
+        'Subject selection is empty: no matching node exists in the current render.',
       );
     }
     return node;

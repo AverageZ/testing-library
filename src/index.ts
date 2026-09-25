@@ -1,17 +1,17 @@
-import { createElement } from "react";
+import { createElement } from 'react';
 import type {
   ComponentProps,
   ComponentType,
   ElementType,
   ReactElement,
   ReactNode,
-} from "react";
-import type { DriverFactory, PropRecord, RenderDriver } from "./internal.js";
-import { createMountDriver } from "./mount.js";
-import { createShallowDriver } from "./shallow.js";
-import { Subject } from "./subject.js";
+} from 'react';
+import type { DriverFactory, PropRecord, RenderDriver } from './internal.js';
+import { createMountDriver } from './mount.js';
+import { createShallowDriver } from './shallow.js';
+import { Subject } from './subject.js';
 
-export { Subject } from "./subject.js";
+export { Subject } from './subject.js';
 export type Provider = ComponentType<{ children?: ReactNode }>;
 const mounted = new Set<RenderSession<unknown>>();
 
@@ -31,10 +31,10 @@ export class RenderSession<P> {
 
   /** Configure wrappers before first observation; the first provider is outermost. */
   with(...providers: readonly Provider[]): this {
-    if (this.disposed) throw new Error("Cannot configure an unmounted subject");
+    if (this.disposed) throw new Error('Cannot configure an unmounted subject');
     if (this.driver)
       throw new Error(
-        "Call .with(...) before observing or updating the subject",
+        'Call .with(...) before observing or updating the subject',
       );
     this.wrappers = [...this.wrappers, ...providers];
     return this;
@@ -75,7 +75,7 @@ export class RenderSession<P> {
 
   private initialize(): RenderDriver {
     if (this.disposed)
-      throw new Error("Cannot use an unmounted render session");
+      throw new Error('Cannot use an unmounted render session');
     if (!this.driver) {
       this.driver = this.factory({
         component: this.component,
@@ -161,6 +161,6 @@ export function cleanup(): void {
   if (errors.length > 1)
     throw new AggregateError(
       errors,
-      "Multiple render sessions failed to clean up",
+      'Multiple render sessions failed to clean up',
     );
 }

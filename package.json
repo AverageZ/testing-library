@@ -32,21 +32,25 @@
     "test": "vitest run",
     "benchmark": "node scripts/benchmark.mjs",
     "verify": "node scripts/verify.mjs",
-    "format": "prettier --write src tests scripts *.json *.ts"
+    "lint": "oxlint src tests scripts",
+    "lint:fix": "oxlint --fix src tests scripts",
+    "format": "oxfmt src tests scripts *.json *.ts",
+    "format:check": "oxfmt --check src tests scripts *.json *.ts"
   },
   "peerDependencies": {
     "react": "^17.0.2 || ^18.2.0 || >=19.0.0 <19.4.0",
     "react-dom": "^17.0.2 || ^18.2.0 || >=19.0.0 <19.4.0"
   },
   "devDependencies": {
-    "@testing-library/react": "^16.3.0",
     "@testing-library/dom": "^10.4.1",
+    "@testing-library/react": "^16.3.0",
     "@types/node": "^24.0.0",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
     "esbuild": "^0.25.0",
     "jsdom": "^26.1.0",
-    "prettier": "^3.6.2",
+    "oxfmt": "^0.65.0",
+    "oxlint": "^1.85.0",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "reconciler17": "npm:react-reconciler@0.26.2",

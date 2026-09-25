@@ -1,4 +1,4 @@
-import type { ElementType, ReactElement, ReactNode } from "react";
+import type { ElementType, ReactElement, ReactNode } from 'react';
 
 export type PropRecord = Readonly<Record<string, unknown>>;
 
@@ -12,7 +12,7 @@ export interface InspectionNode {
 }
 
 export interface RenderDriver {
-  readonly mode: "shallow" | "mount";
+  readonly mode: 'shallow' | 'mount';
   inspect(): InspectionNode | null;
   render(props: PropRecord, wrappers: readonly ElementType[]): void;
   flush(): void;

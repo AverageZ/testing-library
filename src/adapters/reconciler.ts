@@ -1,6 +1,6 @@
-import * as React from "react";
-import type { ReactNode } from "react";
-import type { PropRecord } from "../internal.js";
+import * as React from 'react';
+import type { ReactNode } from 'react';
+import type { PropRecord } from '../internal.js';
 
 export interface HostNode {
   type: string;
@@ -56,19 +56,19 @@ export function reactVersion(): { major: number; minor: number } {
 function loadFactory(major: number, minor: number): Factory {
   switch (major) {
     case 17:
-      return require("./adapters/react17.cjs") as Factory;
+      return require('./adapters/react17.cjs') as Factory;
     case 18:
-      return require("./adapters/react18.cjs") as Factory;
+      return require('./adapters/react18.cjs') as Factory;
     case 19:
       switch (minor) {
         case 0:
-          return require("./adapters/react19_0.cjs") as Factory;
+          return require('./adapters/react19_0.cjs') as Factory;
         case 1:
-          return require("./adapters/react19_1.cjs") as Factory;
+          return require('./adapters/react19_1.cjs') as Factory;
         case 2:
-          return require("./adapters/react19_2.cjs") as Factory;
+          return require('./adapters/react19_2.cjs') as Factory;
         case 3:
-          return require("./adapters/react19_3.cjs") as Factory;
+          return require('./adapters/react19_3.cjs') as Factory;
       }
   }
   throw new Error(`No reconciler adapter for React ${React.version}`);
@@ -86,7 +86,7 @@ function insert(parent: HostNode, child: HostNode, before: HostNode): void {
   remove(parent, child);
   const index = parent.children.indexOf(before);
   if (index < 0)
-    throw new Error("Invalid insertion point in shallow host tree");
+    throw new Error('Invalid insertion point in shallow host tree');
   parent.children.splice(index, 0, child);
 }
 
@@ -95,8 +95,8 @@ function getReconciler(): Reconciler {
   const { major, minor } = reactVersion();
   let priority = 0;
   const config: Record<string, unknown> = {
-    rendererVersion: "0.1.0",
-    rendererPackageName: "react-contract-renderer",
+    rendererVersion: '0.1.0',
+    rendererPackageName: 'react-contract-renderer',
     isPrimaryRenderer: false,
     supportsMutation: true,
     supportsPersistence: false,
@@ -117,7 +117,7 @@ function getReconciler(): Reconciler {
       hidden: false,
     }),
     createTextInstance: (text: string): HostNode => ({
-      type: "#text",
+      type: '#text',
       props: { text },
       children: [],
       hidden: false,
@@ -208,7 +208,7 @@ function actFunction(): Act | undefined {
   if (react.act) cachedAct = react.act;
   else if (reactVersion().major === 18) {
     // React 18.2 exposes the shared act queue through react-dom/test-utils.
-    const utilities = require("react-dom/test-utils") as { act: Act };
+    const utilities = require('react-dom/test-utils') as { act: Act };
     cachedAct = utilities.act;
   }
   return cachedAct;
@@ -224,7 +224,7 @@ export function createShallowRoot(): {
   const reconciler = getReconciler();
   const { major } = reactVersion();
   const container: HostNode = {
-    type: "#root",
+    type: '#root',
     props: {},
     children: [],
     hidden: false,
@@ -243,7 +243,7 @@ export function createShallowRoot(): {
             null,
             false,
             null,
-            "",
+            '',
             onError,
             null,
           )
@@ -253,7 +253,7 @@ export function createShallowRoot(): {
             null,
             false,
             null,
-            "",
+            '',
             onError,
             onError,
             onError,
@@ -277,7 +277,7 @@ export function createShallowRoot(): {
       flushSync(noop);
       checkError();
       if (++passes > 100)
-        throw new Error("Shallow effects did not settle after 100 flushes");
+        throw new Error('Shallow effects did not settle after 100 flushes');
     } while (reconciler.flushPassiveEffects());
     checkError();
   };

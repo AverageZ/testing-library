@@ -1,5 +1,5 @@
-import type { ElementType } from "react";
-import type { InspectionNode, PropRecord } from "../internal.js";
+import type { ElementType } from 'react';
+import type { InspectionNode, PropRecord } from '../internal.js';
 
 export type DOMReactVersion = 17 | 18 | 19;
 
@@ -30,7 +30,7 @@ interface Fiber {
 }
 
 function record(value: unknown): Readonly<Record<string, unknown>> | null {
-  return typeof value === "object" && value !== null
+  return typeof value === 'object' && value !== null
     ? (value as Readonly<Record<string, unknown>>)
     : null;
 }
@@ -39,15 +39,15 @@ function currentFiber(publicRoot: unknown): Fiber {
   const root = record(publicRoot);
   if (root === null)
     throw new Error(
-      "Unsupported React DOM internals: expected a mounted root.",
+      'Unsupported React DOM internals: expected a mounted root.',
     );
-  const internalRoot = record(root["_internalRoot"]);
+  const internalRoot = record(root['_internalRoot']);
   if (internalRoot === null)
-    throw new Error("Unsupported React DOM internals: expected a FiberRoot.");
-  const current = record(internalRoot["current"]);
-  if (current === null || current["tag"] !== 3) {
+    throw new Error('Unsupported React DOM internals: expected a FiberRoot.');
+  const current = record(internalRoot['current']);
+  if (current === null || current['tag'] !== 3) {
     throw new Error(
-      "Unsupported React DOM internals: expected FiberRoot.current.",
+      'Unsupported React DOM internals: expected FiberRoot.current.',
     );
   }
   return current as unknown as Fiber;
@@ -91,7 +91,7 @@ function exposedType(
 
 function hostElement(fiber: Fiber): Element | null {
   const node = record(fiber.stateNode);
-  return node?.["nodeType"] === 1 ? (fiber.stateNode as Element) : null;
+  return node?.['nodeType'] === 1 ? (fiber.stateNode as Element) : null;
 }
 
 function firstDOM(fiber: Fiber, version: DOMReactVersion): Element | null {
@@ -105,16 +105,16 @@ function firstDOM(fiber: Fiber, version: DOMReactVersion): Element | null {
 }
 
 function committedText(fiber: Fiber, version: DOMReactVersion): string {
-  if (skipped(fiber, version)) return "";
+  if (skipped(fiber, version)) return '';
   if (fiber.tag === 6) {
     const node = record(fiber.stateNode);
-    return typeof node?.["nodeValue"] === "string" ? node["nodeValue"] : "";
+    return typeof node?.['nodeValue'] === 'string' ? node['nodeValue'] : '';
   }
   // React omits HostText fibers for direct string children and innerHTML.
   // Reading the DOM also reflects browser-normalized text, not prop coercion.
   if (isHost(fiber, version) && fiber.child === null)
-    return hostElement(fiber)?.textContent ?? "";
-  let text = "";
+    return hostElement(fiber)?.textContent ?? '';
+  let text = '';
   for (let child = fiber.child; child !== null; child = child.sibling) {
     text += committedText(child, version);
   }
@@ -181,7 +181,7 @@ export function inspectDOMRoot(
   boundary: ElementType,
 ): InspectionNode | null {
   const root =
-    version === 17 ? record(container)?.["_reactRootContainer"] : publicRoot;
+    version === 17 ? record(container)?.['_reactRootContainer'] : publicRoot;
   const current = currentFiber(root);
   const targetBoundary = findBoundary(current.child, boundary, version);
   if (targetBoundary === null) return null;

@@ -1,20 +1,20 @@
-import * as React from "react";
-import { afterEach, expect, test } from "vitest";
-import { cleanup, getComponentRenderer } from "react-contract-renderer";
+import * as React from 'react';
+import { afterEach, expect, test } from 'vitest';
+import { cleanup, getComponentRenderer } from 'react-contract-renderer';
 
 afterEach(cleanup);
 
-test("runs parent effects without a DOM or evaluating opaque child contracts", async () => {
-  expect(typeof document).toBe("undefined");
+test('runs parent effects without a DOM or evaluating opaque child contracts', async () => {
+  expect(typeof document).toBe('undefined');
   const pending = Promise.withResolvers<string>();
   let childCalls = 0;
   let stopped = false;
   function Page(_props: { name: string; children?: React.ReactNode }): never {
     childCalls++;
-    throw new Error("A shallow child must not execute");
+    throw new Error('A shallow child must not execute');
   }
   function App({ route }: { route: string }) {
-    const [name, setName] = React.useState("loading");
+    const [name, setName] = React.useState('loading');
     React.useEffect(() => {
       let active = true;
       void pending.promise.then((value) => {
@@ -31,15 +31,15 @@ test("runs parent effects without a DOM or evaluating opaque child contracts", a
       </Page>
     );
   }
-  const session = getComponentRenderer(App, { route: "/home" }).shallow();
+  const session = getComponentRenderer(App, { route: '/home' }).shallow();
   const page = session.subject.find(Page);
-  expect(page.prop("name")).toBe("loading");
+  expect(page.prop('name')).toBe('loading');
   expect(session.subject.findAll(Page)).toHaveLength(1);
   await session.act(async () => {
-    pending.resolve("Ada");
+    pending.resolve('Ada');
     await pending.promise;
   });
-  expect(page.prop("name")).toBe("/home:Ada");
+  expect(page.prop('name')).toBe('/home:Ada');
   expect(childCalls).toBe(0);
   expect(() => page.getDOMNode()).toThrow();
   session.unmount();
@@ -47,7 +47,7 @@ test("runs parent effects without a DOM or evaluating opaque child contracts", a
   expect(page.exists()).toBe(false);
 });
 
-test("distinguishes missing, singular, and ambiguous contracts across live updates", () => {
+test('distinguishes missing, singular, and ambiguous contracts across live updates', () => {
   const Item = (_props: { id: number }) => null;
   function List({ count }: { count: number }) {
     return (
@@ -60,19 +60,19 @@ test("distinguishes missing, singular, and ambiguous contracts across live updat
   }
   const session = getComponentRenderer(List, { count: 2 }).shallow();
   const items = session.subject.findAll(Item);
-  expect(items.map((item) => item.prop("id"))).toEqual([0, 1]);
+  expect(items.map((item) => item.prop('id'))).toEqual([0, 1]);
   expect(() => session.subject.find(Item).props()).toThrow();
-  expect(session.subject.find("section").className()).toBe("items");
-  expect(session.subject.find("section").type()).toBe("section");
+  expect(session.subject.find('section').className()).toBe('items');
+  expect(session.subject.find('section').type()).toBe('section');
   expect(items[0]?.element().type).toBe(Item);
   session.rerender({ count: 1 });
-  expect(session.subject.find(Item).prop("id")).toBe(0);
+  expect(session.subject.find(Item).prop('id')).toBe(0);
   expect(items[1]?.exists()).toBe(false);
-  expect(session.subject.find("button").exists()).toBe(false);
-  expect(() => session.subject.find("button").props()).toThrow();
+  expect(session.subject.find('button').exists()).toBe(false);
+  expect(() => session.subject.find('button').props()).toThrow();
 });
 
-test("preserves state and effect cleanup ordering through changed dependencies", async () => {
+test('preserves state and effect cleanup ordering through changed dependencies', async () => {
   const lifecycle: string[] = [];
   const Child = (_props: { count: number; increment: () => void }) => null;
   function Parent({ name }: { name: string }) {
@@ -94,29 +94,29 @@ test("preserves state and effect cleanup ordering through changed dependencies",
     }, [name]);
     return <Child count={count} increment={increment} />;
   }
-  const session = getComponentRenderer(Parent, { name: "first" }).shallow();
+  const session = getComponentRenderer(Parent, { name: 'first' }).shallow();
   const child = session.subject.find(Child);
   await session.act(() => {
-    child.prop("increment")();
+    child.prop('increment')();
   });
-  session.rerender({ name: "second" });
-  expect(child.prop("count")).toBe(1);
+  session.rerender({ name: 'second' });
+  expect(child.prop('count')).toBe(1);
   session.unmount();
   expect(lifecycle).toEqual([
-    "layout:first",
-    "effect:first",
-    "layout-clean:first",
-    "layout:second",
-    "effect-clean:first",
-    "effect:second",
-    "layout-clean:second",
-    "effect-clean:second",
+    'layout:first',
+    'effect:first',
+    'layout-clean:first',
+    'layout:second',
+    'effect-clean:first',
+    'effect:second',
+    'layout-clean:second',
+    'effect-clean:second',
   ]);
 });
 
-test("renders class state lifecycles while leaving returned children opaque", () => {
+test('renders class state lifecycles while leaving returned children opaque', () => {
   const Child = (_props: { ready: boolean }) => {
-    throw new Error("opaque");
+    throw new Error('opaque');
   };
   let released = false;
   class Parent extends React.Component<{ name: string }, { ready: boolean }> {
@@ -131,14 +131,14 @@ test("renders class state lifecycles while leaving returned children opaque", ()
       return <Child ready={this.state.ready} />;
     }
   }
-  const session = getComponentRenderer(Parent, { name: "class" }).shallow();
+  const session = getComponentRenderer(Parent, { name: 'class' }).shallow();
   expect(session.subject.type()).toBe(Parent);
-  expect(session.subject.find(Child).prop("ready")).toBe(true);
+  expect(session.subject.find(Child).prop('ready')).toBe(true);
   session.unmount();
   expect(released).toBe(true);
 });
 
-test("supports memo and forwardRef roots without swallowing render errors", () => {
+test('supports memo and forwardRef roots without swallowing render errors', () => {
   const Child = (_props: { name: string }) => null;
   const Parent = React.memo(
     React.forwardRef<unknown, { name: string }>(({ name }, _ref) => {
@@ -146,11 +146,11 @@ test("supports memo and forwardRef roots without swallowing render errors", () =
       return <Child name={value} />;
     }),
   );
-  const session = getComponentRenderer(Parent, { name: "first" }).shallow();
-  expect(session.subject.find(Child).prop("name")).toBe("FIRST");
-  session.rerender({ name: "second" });
-  expect(session.subject.find(Child).prop("name")).toBe("SECOND");
-  const error = new RangeError("failure from user component");
+  const session = getComponentRenderer(Parent, { name: 'first' }).shallow();
+  expect(session.subject.find(Child).prop('name')).toBe('FIRST');
+  session.rerender({ name: 'second' });
+  expect(session.subject.find(Child).prop('name')).toBe('SECOND');
+  const error = new RangeError('failure from user component');
   function Broken(): never {
     throw error;
   }

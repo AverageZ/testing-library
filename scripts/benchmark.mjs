@@ -1,11 +1,11 @@
-import assert from "node:assert/strict";
-import { performance } from "node:perf_hooks";
-import { MessageChannel } from "node:worker_threads";
-import { JSDOM } from "jsdom";
+import assert from 'node:assert/strict';
+import { performance } from 'node:perf_hooks';
+import { MessageChannel } from 'node:worker_threads';
+import { JSDOM } from 'jsdom';
 
 // React DOM detects its host environment at import time.
-const dom = new JSDOM("<!doctype html><html><body></body></html>", {
-  url: "http://localhost/",
+const dom = new JSDOM('<!doctype html><html><body></body></html>', {
+  url: 'http://localhost/',
   pretendToBeVisual: true,
 });
 // React 17's browser scheduler owns MessagePorts. Track the host resources
@@ -18,15 +18,15 @@ globalThis.MessageChannel = class extends MessageChannel {
   }
 };
 for (const key of [
-  "window",
-  "document",
-  "navigator",
-  "HTMLElement",
-  "Element",
-  "Node",
-  "MouseEvent",
-  "requestAnimationFrame",
-  "cancelAnimationFrame",
+  'window',
+  'document',
+  'navigator',
+  'HTMLElement',
+  'Element',
+  'Node',
+  'MouseEvent',
+  'requestAnimationFrame',
+  'cancelAnimationFrame',
 ]) {
   Object.defineProperty(globalThis, key, {
     configurable: true,
@@ -34,29 +34,29 @@ for (const key of [
   });
 }
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
-const { default: React } = await import("react");
+const { default: React } = await import('react');
 const { getComponentRenderer, cleanup } =
-  await import("react-contract-renderer");
+  await import('react-contract-renderer');
 const { render, cleanup: rtlCleanup } =
-  await import("@testing-library/react/pure.js");
+  await import('@testing-library/react/pure.js');
 const h = React.createElement;
 
 function Leaf({ label }) {
-  return h("button", { type: "button" }, label);
+  return h('button', { type: 'button' }, label);
 }
 function Effect({ label }) {
-  const [value, setValue] = React.useState("pending");
+  const [value, setValue] = React.useState('pending');
   React.useEffect(() => {
     setValue(label);
   }, [label]);
-  return h("output", null, value);
+  return h('output', null, value);
 }
 function Branch({ label }) {
-  return h("span", null, label);
+  return h('span', null, label);
 }
 function Tree({ label }) {
   return h(
-    "section",
+    'section',
     null,
     Array.from({ length: 24 }, (_, index) =>
       h(Branch, { key: index, label: `${label}:${index}` }),
@@ -64,13 +64,13 @@ function Tree({ label }) {
   );
 }
 const fixtures = [
-  { name: "leaf", component: Leaf, text: "contract" },
-  { name: "effect-update", component: Effect, text: "contract" },
+  { name: 'leaf', component: Leaf, text: 'contract' },
+  { name: 'effect-update', component: Effect, text: 'contract' },
   {
-    name: "child-tree",
+    name: 'child-tree',
     component: Tree,
     text: Array.from({ length: 24 }, (_, index) => `contract:${index}`).join(
-      "",
+      '',
     ),
   },
 ];
@@ -81,7 +81,7 @@ let failed = false;
 
 try {
   for (const fixture of fixtures) {
-    const props = { label: "contract" };
+    const props = { label: 'contract' };
     const renderer = getComponentRenderer(fixture.component, props);
     const element = h(fixture.component, props);
     const mounted = renderer.mount();
@@ -144,7 +144,7 @@ try {
   );
   if (failed)
     throw new Error(
-      "Performance gate failed: every shallow and mount median must be <= its React Testing Library baseline.",
+      'Performance gate failed: every shallow and mount median must be <= its React Testing Library baseline.',
     );
 } finally {
   try {
