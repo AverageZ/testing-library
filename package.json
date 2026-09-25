@@ -28,6 +28,7 @@
   "packageManager": "pnpm@10.24.0",
   "scripts": {
     "build": "node scripts/build.mjs && tsc -p tsconfig.build.json && node scripts/declarations.mjs",
+    "docs": "typedoc",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "benchmark": "node scripts/benchmark.mjs",
@@ -64,6 +65,7 @@
     "reconciler19_1": "npm:react-reconciler@0.32.0",
     "reconciler19_2": "npm:react-reconciler@0.33.0",
     "reconciler19_3": "npm:react-reconciler@0.34.0",
+    "typedoc": "^0.28.20",
     "typescript": "^5.9.3",
     "vitest": "^3.2.4"
   }

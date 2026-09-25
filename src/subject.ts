@@ -1,6 +1,6 @@
 import { createElement } from 'react';
 import type { ComponentProps, ElementType, ReactElement } from 'react';
-import type { InspectionNode, PropRecord } from './internal.js';
+import type { InspectionNode } from './internal.js';
 
 function validateType(type: unknown): void {
   if (typeof type === 'string') {
@@ -52,7 +52,8 @@ function collectMatches(
 }
 
 /** A live selection: every inspection resolves against the latest committed render. */
-export class Subject<P = PropRecord> {
+export class Subject<P = Readonly<Record<string, unknown>>> {
+  /** @internal */
   constructor(
     private readonly source: () => readonly InspectionNode[],
     private readonly mode: 'shallow' | 'mount',
@@ -79,18 +80,22 @@ export class Subject<P = PropRecord> {
     );
   }
 
+  /** Report whether exactly one matching node exists in the current render. */
   exists(): boolean {
     return this.resolve() !== undefined;
   }
 
+  /** Return every prop from the selected component or host node. */
   props(): P {
     return this.requireNode().props as P;
   }
 
+  /** Return one typed prop from the selected component or host node. */
   prop<K extends keyof P>(key: K): P[K] {
     return this.props()[key];
   }
 
+  /** Return the selected node's string className, if it has one. */
   className(): string | undefined {
     const value = this.requireNode().props['className'];
     if (value === undefined) return undefined;
@@ -102,20 +107,26 @@ export class Subject<P = PropRecord> {
     return value;
   }
 
+  /** Return the selected component identity or intrinsic host tag. */
   type(): ElementType {
     return this.requireNode().type;
   }
 
+  /** Recreate the selected node as a React element with its current props. */
   element(): ReactElement<P> {
     const node = this.requireNode();
     return createElement(node.type, node.props) as unknown as ReactElement<P>;
   }
 
+  /** Return all text content beneath the selected node. */
   text(): string {
     return this.requireNode().text;
   }
 
-  /** Mount only: return the first host Element represented by the selected contract. */
+  /**
+   * Mount only: return the first host element represented by the selected
+   * contract.
+   */
   getDOMNode(): Element {
     const node = this.requireNode();
     if (this.mode === 'shallow') {

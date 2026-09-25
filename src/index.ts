@@ -12,16 +12,25 @@ import { createShallowDriver } from './shallow.js';
 import { Subject } from './subject.js';
 
 export { Subject } from './subject.js';
+
+/** A React provider applied around every render session with {@link RenderSession.with}. */
 export type Provider = ComponentType<{ children?: ReactNode }>;
 const mounted = new Set<RenderSession<unknown>>();
 
-/** Sessions initialize on first observation, so .mount().with(...) mounts exactly once. */
+/**
+ * A lazily initialized component render. Configure providers before observing
+ * {@link subject}; unmount it manually or with {@link cleanup}.
+ */
 export class RenderSession<P> {
   private driver: RenderDriver | undefined;
   private wrappers: readonly Provider[] = [];
   private disposed = false;
   private selection: Subject<P> | undefined;
 
+  /**
+   * @internal
+   * Constructed by {@link getComponentRenderer}.
+   */
   constructor(
     private readonly component: ElementType,
     private props: P,
@@ -29,7 +38,10 @@ export class RenderSession<P> {
     private readonly initialElement?: ReactElement,
   ) {}
 
-  /** Configure wrappers before first observation; the first provider is outermost. */
+  /**
+   * Configure providers before first observation. Providers nest in argument
+   * order, so the first provider is outermost.
+   */
   with(...providers: readonly Provider[]): this {
     if (this.disposed) throw new Error('Cannot configure an unmounted subject');
     if (this.driver)
@@ -40,6 +52,7 @@ export class RenderSession<P> {
     return this;
   }
 
+  /** Inspect the current render through live, typed contract queries. */
   get subject(): Subject<P> {
     const driver = this.initialize();
     this.selection ??= new Subject<P>(() => {
@@ -49,23 +62,24 @@ export class RenderSession<P> {
     return this.selection;
   }
 
-  /** Merge new props into the current props while preserving React state. */
+  /** Merge props into the current render while preserving component state. */
   rerender(overrides: Partial<P>): void {
     const driver = this.initialize();
     this.props = { ...this.props, ...overrides };
     driver.render(this.props as PropRecord, this.wrappers);
   }
 
-  /** Flush already scheduled work; use act() to await asynchronous work explicitly. */
+  /** Flush already scheduled synchronous work; use {@link act} for asynchronous work. */
   flush(): void {
     this.initialize().flush();
   }
 
-  /** Await this call. Await the component's request/timer inside the callback; no network polling is performed. */
+  /** Await React work scheduled by the callback. Await the component request or timer inside the callback. */
   async act(callback: () => void | Promise<void>): Promise<void> {
     await this.initialize().act(callback);
   }
 
+  /** Unmount the render. Calling this more than once is safe. */
   unmount(): void {
     if (this.disposed) return;
     this.disposed = true;
@@ -89,10 +103,17 @@ export class RenderSession<P> {
   }
 }
 
+/** Create shallow and DOM render sessions for one component and its typed defaults. */
 export interface ComponentRenderer<C extends ElementType> {
+  /**
+   * Render the target while keeping custom child components opaque. Hooks and
+   * effects in the target still run.
+   */
   shallow(
     overrides?: Partial<ComponentProps<C>>,
   ): RenderSession<ComponentProps<C>>;
+
+  /** Render the target and descendants into a DOM container. */
   mount(
     overrides?: Partial<ComponentProps<C>>,
   ): RenderSession<ComponentProps<C>>;
@@ -147,7 +168,10 @@ export function getComponentRenderer<C extends ElementType>(
   };
 }
 
-/** Register with your runner's afterEach; attempts every unmount even if one cleanup throws. */
+/**
+ * Unmount every live render session. Register this with the test runner's
+ * `afterEach`; cleanup continues after an individual unmount fails.
+ */
 export function cleanup(): void {
   const errors: unknown[] = [];
   for (const session of mounted) {
