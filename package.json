@@ -1,6 +1,6 @@
 {
   "name": "@avgz/react-contract-renderer",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Typed React component-contract testing with shallow and DOM renderers",
   "homepage": "https://github.com/AverageZ/testing-library#readme",
   "bugs": {

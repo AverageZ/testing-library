@@ -33,7 +33,7 @@ const adapterBuilds = await Promise.all(
 );
 await writeFile(
   'dist/index.js',
-  "import api from './index.cjs';\nexport const { getComponentRenderer, cleanup, Subject, RenderSession } = api;\n",
+  "import api from './index.cjs';\nexport const { getComponentRenderer, cleanup, QueryTree, Subject, RenderSession } = api;\n",
 );
 
 // Redistributed reconciler/scheduler code must retain the full dependency licenses.

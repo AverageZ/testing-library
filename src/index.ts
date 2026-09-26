@@ -11,11 +11,26 @@ import { createMountDriver } from './mount.js';
 import { createShallowDriver } from './shallow.js';
 import { Subject } from './subject.js';
 
-export { Subject } from './subject.js';
+export { QueryTree, Subject } from './subject.js';
 
 /** A React provider applied around every render session with {@link RenderSession.with}. */
 export type Provider = ComponentType<{ children?: ReactNode }>;
 const mounted = new Set<RenderSession<unknown>>();
+
+type CallbackKeys<P> = {
+  [K in keyof P]-?: [NonNullable<P[K]>] extends [never]
+    ? never
+    : NonNullable<P[K]> extends (...args: never[]) => unknown
+      ? K
+      : never;
+}[keyof P];
+
+// Infer once from the whole callback union: arguments must satisfy every member.
+type CallbackArguments<F> = [NonNullable<F>] extends [
+  (...args: infer Args) => unknown,
+]
+  ? Args
+  : never;
 
 /**
  * A lazily initialized component render. Configure providers before observing
@@ -77,6 +92,30 @@ export class RenderSession<P> {
   /** Await React work scheduled by the callback. Await the component request or timer inside the callback. */
   async act(callback: () => void | Promise<void>): Promise<void> {
     await this.initialize().act(callback);
+  }
+
+  /**
+   * Invoke the selected subject's current callback inside {@link act}.
+   * Supply its actual arguments, including any required event; no events are
+   * fabricated. Optional callbacks must be present and callable at invocation.
+   * Await asynchronous callbacks and React work, discarding callback return values.
+   */
+  async invoke<Props, K extends CallbackKeys<NoInfer<Props>>>(
+    subject: Subject<Props>,
+    callbackProp: K,
+    ...args: CallbackArguments<NoInfer<Props[K]>>
+  ): Promise<void> {
+    await this.act(async () => {
+      const callback = subject.prop(callbackProp);
+      if (typeof callback !== 'function') {
+        throw new TypeError(
+          `Cannot invoke prop "${String(callbackProp)}": expected a callback function.`,
+        );
+      }
+      await (callback as (...args: CallbackArguments<Props[K]>) => unknown)(
+        ...args,
+      );
+    });
   }
 
   /** Unmount the render. Calling this more than once is safe. */

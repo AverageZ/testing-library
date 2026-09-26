@@ -2,17 +2,11 @@ import * as React from 'react';
 import type { ComponentType, ElementType, ReactNode } from 'react';
 import { createShallowRoot } from './adapters/reconciler.js';
 import type { HostNode } from './adapters/reconciler.js';
-import type {
-  DriverOptions,
-  InspectionNode,
-  PropRecord,
-  RenderDriver,
-} from './internal.js';
-import { wrap } from './internal.js';
+import type { DriverOptions, PropRecord, RenderDriver } from './internal.js';
+import { inspectReactChildren, wrap } from './internal.js';
 
 const outputType = 'contract-renderer-output';
 const wrappedTypes = new WeakMap<object, ElementType>();
-const noChildren: readonly InspectionNode[] = Object.freeze([]);
 
 type FunctionComponent = (props: PropRecord) => ReactNode;
 type ClassComponent = new (
@@ -104,44 +98,6 @@ function outputNode(node: HostNode): HostNode | undefined {
   return undefined;
 }
 
-function inspectChildren(value: ReactNode): {
-  children: readonly InspectionNode[];
-  text: string;
-} {
-  const children: InspectionNode[] = [];
-  let text = '';
-  React.Children.forEach(value, (child) => {
-    if (
-      typeof child === 'string' ||
-      typeof child === 'number' ||
-      typeof child === 'bigint'
-    ) {
-      text += String(child);
-    } else if (React.isValidElement<PropRecord>(child)) {
-      const { type } = child;
-      if (type === React.Fragment) {
-        const inner = inspectChildren(child.props['children'] as ReactNode);
-        children.push(...inner.children);
-        text += inner.text;
-      } else {
-        const inner =
-          typeof type === 'string'
-            ? inspectChildren(child.props['children'] as ReactNode)
-            : { children: noChildren, text: '' };
-        children.push({
-          type: type as ElementType,
-          props: child.props,
-          children: inner.children,
-          text: inner.text,
-          dom: null,
-        });
-        text += inner.text;
-      }
-    }
-  });
-  return { children, text };
-}
-
 export function createShallowDriver(options: DriverOptions): RenderDriver {
   const root = createShallowRoot();
   const Target = instrument(options.component);
@@ -154,7 +110,7 @@ export function createShallowDriver(options: DriverOptions): RenderDriver {
       if (disposed) return null;
       const node = outputNode(root.container);
       if (!node) return null;
-      const children = inspectChildren(node.props['value'] as ReactNode);
+      const children = inspectReactChildren(node.props['value'] as ReactNode);
       return {
         type: options.component,
         props: node.props['input'] as PropRecord,

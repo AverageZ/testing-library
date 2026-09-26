@@ -169,6 +169,9 @@ const session = getComponentRenderer(Component, defaultProps).shallow(
 session.with(Provider);
 session.subject.find(Child).prop("value");
 session.subject.findAll("li");
+session.subject.find(Modal).tree("content").find(AccountPanel);
+session.subject.findByTestId("account-save", SaveButton);
+await session.invoke(session.subject.find(AccountPanel), "onSave");
 session.rerender(partialProps);
 await session.act(async () => {
   await request;
@@ -177,7 +180,43 @@ session.flush();
 session.unmount();
 ```
 
-A `Subject` is live: an existing selection reads the latest committed render after state changes or `rerender()`. Available inspections are `find`, `findAll`, `exists`, `props`, `prop`, `className`, `type`, `element`, `text`, and, after `mount()`, `getDOMNode`.
+A `Subject` is live: an existing selection reads the latest committed render after state changes or `rerender()`. Available inspections are `find`, `findAll`, `findByTestId`, `findAllByTestId`, `tree`, `exists`, `props`, `prop`, `className`, `type`, `element`, `text`, and, after `mount()`, `getDOMNode`.
+
+### Inspect React-node props explicitly
+
+`tree(prop)` opens a query root over elements already present in a React-node-valued prop. It flattens arrays and fragments and traverses host children, but never renders a custom component or implicitly crosses its props:
+
+```ts
+const modal = session.subject.find(Modal);
+const content = modal.tree("children").find(ModalContent);
+const preview = content.tree("content").find(DamagePreview);
+const footerButtons = content.tree("footer").findAll(Button);
+```
+
+Each custom-component boundary stays explicit. Existing `find` traversal is unchanged. Selections remain live after `act` and `rerender`; plural selections track match indices, so re-query their list after insertion or reordering. Prop-tree selections describe elements, not rendered DOM, even in a mounted session; `getDOMNode()` is unavailable on them.
+
+### Select technical targets
+
+```ts
+const save = session.subject.findByTestId("account-save", SaveButton);
+const rows = content.tree("content").findAllByTestId("stats-row", "div");
+```
+
+IDs match the exact `data-testid` prop, including the current root, without CSS semantics. The optional component or tag argument validates the selected type and preserves its prop inference; it does not filter away mismatches or duplicate IDs. Without it, prop values are `unknown`. Singular inspections reject duplicate matches; `exists()` returns `false` for no match, while prop inspection throws. Errors identify the ID and query boundary. Plural matches validate their type when inspected.
+
+Prefer a named application component and domain prop when available. Use scoped, behavior-named IDs only for technical targets, and declare `'data-testid'?: string` on custom components that forward it. Accessible UI tests should still prefer role, label, or text.
+
+### Invoke typed domain callbacks
+
+```ts
+const view = session.subject.find(AccountPanel);
+await session.invoke(view, "onSave");
+await session.invoke(view, "onSelect", "archer", 3);
+```
+
+`invoke` resolves the current callback inside `act`, checks its parameter types, awaits asynchronous work, and returns `Promise<void>`; callback return values are discarded. Optional callbacks must be present at invocation or the promise rejects. Callback exceptions propagate.
+
+This is callback invocation, not event simulation. Required event arguments cannot be omitted, and no event is fabricated. Prefer no-argument domain callbacks in controller contracts; mount focused leaf controls and use their real host interactions for browser-event behavior. Keep `session.act` for arbitrary state updates, store dispatch, and real DOM interactions.
 
 ## Why choose it over React Testing Library?
 
@@ -195,7 +234,7 @@ Both libraries can earn a place in the same test suite. Use RTL for user-facing 
 
 Enzyme established the useful idea of shallow-rendering a component as a unit and inspecting its children. React Contract Renderer keeps that narrow capability instead of recreating Enzyme's wrapper API.
 
-Queries use component identities or intrinsic tag names rather than CSS selectors. Props are inferred by TypeScript rather than exposed through untyped string keys. Hooks and effects run in shallow tests on supported React versions.
+Queries use component identities, intrinsic tag names, or exact technical test IDs rather than CSS selectors. Props are inferred by TypeScript rather than exposed through untyped string keys. Hooks and effects run in shallow tests on supported React versions.
 
 There are no component-instance, state-mutation, selector-language, or simulated-event APIs. This is not a drop-in Enzyme replacement.
 

@@ -1,3 +1,4 @@
+import { Children, Fragment, isValidElement } from 'react';
 import type { ElementType, ReactElement, ReactNode } from 'react';
 
 export type PropRecord = Readonly<Record<string, unknown>>;
@@ -9,6 +10,49 @@ export interface InspectionNode {
   readonly children: readonly InspectionNode[];
   readonly text: string;
   readonly dom: Element | null;
+}
+
+const noChildren: readonly InspectionNode[] = Object.freeze([]);
+
+/** Inspect existing React nodes without executing custom components. */
+export function inspectReactChildren(value: ReactNode): {
+  children: readonly InspectionNode[];
+  text: string;
+} {
+  const children: InspectionNode[] = [];
+  let text = '';
+  Children.forEach(value, (child) => {
+    if (
+      typeof child === 'string' ||
+      typeof child === 'number' ||
+      typeof child === 'bigint'
+    ) {
+      text += String(child);
+    } else if (isValidElement<PropRecord>(child)) {
+      const { type } = child;
+      if (type === Fragment) {
+        const inner = inspectReactChildren(
+          child.props['children'] as ReactNode,
+        );
+        children.push(...inner.children);
+        text += inner.text;
+      } else {
+        const inner =
+          typeof type === 'string'
+            ? inspectReactChildren(child.props['children'] as ReactNode)
+            : { children: noChildren, text: '' };
+        children.push({
+          type: type as ElementType,
+          props: child.props,
+          children: inner.children,
+          text: inner.text,
+          dom: null,
+        });
+        text += inner.text;
+      }
+    }
+  });
+  return { children, text };
 }
 
 export interface RenderDriver {

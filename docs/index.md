@@ -150,3 +150,39 @@ expect(session.subject.find("button").getDOMNode().textContent).toBe("Save");
 | `mount()`   | DOM output, refs, and host behavior         | The component tree renders into a DOM container.     |
 
 Both modes wait until you access `subject` to start rendering. To add providers, chain `.with(OuterProvider, InnerProvider)` before that access. Register `cleanup` with your test runner's `afterEach` to unmount all sessions after each test.
+
+## Query explicit slot contracts
+
+`Subject.tree(prop)` inspects React elements already present in a React-node-valued prop without rendering them. Arrays flatten, fragments are transparent, and host children are traversed. Custom components stay opaque until another explicit `tree` call:
+
+```ts
+const content = session.subject.find(Modal).tree("children").find(ModalContent);
+const preview = content.tree("content").find(DamagePreview);
+const actions = content.tree("footer").findAll(Button);
+```
+
+This does not change `Subject.find` traversal. Both `Subject` and the returned `QueryTree` support `find`, `findAll`, `findByTestId`, and `findAllByTestId`. Selections remain live after `act` and `rerender`; plural selections track match indices, so re-query the list after insertion or reordering. Prop-tree selections never have associated DOM, even when the session is mounted.
+
+## Identify technical targets
+
+```ts
+const save = session.subject.findByTestId("account-save", SaveButton);
+const rows = content.tree("content").findAllByTestId("stats-row", "div");
+```
+
+IDs match exact `data-testid` values, including the query root, without CSS semantics. An optional component identity or intrinsic tag validates the match and preserves prop inference; it does not filter away wrong types or duplicate IDs. Omit it for generic props with `unknown` values. Singular inspections reject ambiguity; missing selections return `false` from `exists()` and throw on prop inspection. Errors name the ID and query boundary. Plural selections validate their type when inspected.
+
+Prefer named application components and domain props. Use scoped, behavior-named technical IDs where those interfaces are insufficient, declare forwarded IDs in custom component props, and keep role/label/text queries for accessible UI tests.
+
+## Invoke callbacks without bypassing their types
+
+```ts
+const view = session.subject.find(AccountPanel);
+await session.invoke(view, "onSave");
+await session.invoke(view, "onSelect", "archer", 3);
+```
+
+`RenderSession.invoke` resolves the live callback inside `act`, preserves required argument types, awaits asynchronous callbacks, and returns `Promise<void>` while discarding callback return values. Absent optional callbacks and non-callable runtime values reject; callback errors propagate.
+
+No events are fabricated and required event arguments cannot be omitted. Prefer domain callbacks for controller contracts and real mounted host interactions for event behavior. `session.act` remains available for store dispatch, arbitrary updates, and real DOM interactions.
+
