@@ -121,7 +121,7 @@ Both libraries can earn a place in the same test suite. Use RTL for user-facing 
 
 ```ts
 import { afterEach, expect, test } from "vitest";
-import { cleanup, getComponentRenderer } from "react-contract-renderer";
+import { cleanup, getComponentRenderer } from "@avgz/react-contract-renderer";
 
 afterEach(cleanup);
 

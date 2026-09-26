@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import React from 'react';
-import * as esm from 'react-contract-renderer';
+import * as esm from '@avgz/react-contract-renderer';
 
 const require = createRequire(import.meta.url);
-const cjs = require('react-contract-renderer');
+const cjs = require('@avgz/react-contract-renderer');
 assert.deepEqual(Object.keys(esm).sort(), Object.keys(cjs).sort());
 assert.equal(esm.getComponentRenderer, cjs.getComponentRenderer);
 assert.equal(typeof document, 'undefined');

@@ -37,7 +37,7 @@ for (const key of [
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 const { default: React } = await import('react');
 const { getComponentRenderer, cleanup } =
-  await import('react-contract-renderer');
+  await import('@avgz/react-contract-renderer');
 const { render, cleanup: rtlCleanup } =
   await import('@testing-library/react/pure.js');
 const h = React.createElement;

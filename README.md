@@ -1,16 +1,127 @@
 # React Contract Renderer
 
-Typed component-contract tests for React. Assert which children a component renders and which props it passes without rendering every descendant.
+Test the contracts between React components with typed assertions. Check which children a component renders and which props it passes to them. Use shallow rendering to run these checks without a DOM renderer.
+
+## Why does this library exist?
+
+Mostly because I disagree with React Testing Library's approach. Testing how users use an application is a good goal. I prefer browser tests with Playwright or Cypress for that job.
+
+RTL treats props and effects as implementation details that tests should avoid. As an application grows, those details become contracts between components and I want tests for those contracts.
+
+> "The ability to improve a design occurs primarily at the interfaces. This is also the prime location for screwing it up."
+
+— Akin's law #15
+
+### DOM assertions can still couple a test to composition
+
+React Testing Library (RTL) lets you find elements by role and accessible name and these queries help you check accessibility. A test that renders `App` can also depend on several layers of components just to effectively check a prop passed between two of them.
+
+For example, `App` passes a session to `AppLayout`. The layout passes it to `Header`, which sets the label for `UserMenu`:
+
+> [!NOTE]
+> This might also be context or something like redux state but the idea is that a top level component passes down to a child.
 
 ```tsx
+function App() {
+  const session = useSession();
+  return <AppLayout session={session} />;
+}
+
+function AppLayout({ session }: { session: Session | null }) {
+  return <Header session={session} />;
+}
+
+function Header({ session }: { session: Session | null }) {
+  return (
+    <UserMenu
+      aria-label={session?.isAdmin ? "Logged in as admin" : "Not logged in"}
+    />
+  );
+}
+```
+
+An RTL test might render the whole app and find the button by role and name:
+
+```tsx
+render(<App />);
+
+expect(
+  screen.getByRole("button", { name: "Logged in as admin" }),
+).toBeInTheDocument();
+```
+
+This assertion depends on the rendered button and its name. The test runs through `App`, `AppLayout`, `Header`, and `UserMenu` and a failure could start anywhere along that chain. Replacing the button with a link would also break the test, even if the administrator can still see that they are signed in.
+
+> [!NOTE]
+> Rendering the whole tree can also require providers, mock stores, and other setup. That is a lot of furniture to move just to check one prop.
+
+The same issue occurs when a test renders a large tree to infer session state from labels:
+
+```tsx
+render(<App />);
+
+expect(screen.queryByLabelText("Not logged in")).not.toBeInTheDocument();
+expect(screen.getByLabelText("Logged in as admin")).toBeInTheDocument();
+```
+
+Choose the test based on the behavior you want to check:
+
+- Use a browser test to check that an administrator can tell they are signed in.
+- Use a focused RTL test to check the menu's role and accessible name.
+- Use component-contract tests to check how `App`, `AppLayout`, `Header`, and `UserMenu` pass session data and derive the label.
+
+### Test each interface and then the leaf's DOM contract
+
+Split the checks by component. This can work well if you use a Connected & Presentational pattern. Each shallow test runs the component under test and inspects the props it gives its children. You can test that a Connected component maps or passes along data without having to worry about the internals of the Presentational bits.
+
+```tsx
+const admin = { isAdmin: true } as Session;
+
+test("AppLayout passes the session to Header", () => {
+  const { subject } = getComponentRenderer(AppLayout, {
+    session: admin,
+  }).shallow();
+
+  expect(subject.find(Header).prop("session")).toBe(admin);
+});
+
+test("Header gives UserMenu the administrator label", () => {
+  const { subject } = getComponentRenderer(Header, {
+    session: admin,
+  }).shallow();
+
+  expect(subject.find(UserMenu).prop("aria-label")).toBe("Logged in as admin");
+});
+
+test("UserMenu exposes its label on a button", () => {
+  const { subject } = getComponentRenderer(UserMenu, {
+    "aria-label": "Logged in as admin",
+  }).mount();
+  const button = subject.find("button").getDOMNode();
+
+  // A native button supplies the accessible role "button".
+  expect(button.tagName).toBe("BUTTON");
+  expect(button.getAttribute("aria-label")).toBe("Logged in as admin");
+});
+```
+
+## Install
+
+```sh
+pnpm add -D @avgz/react-contract-renderer
+```
+
+React and React DOM are peer dependencies. The package supports matching stable versions of React 17.0.2, React 18.2–18.3, and React 19.0–19.3. Node.js 22 or newer is required.
+
+## Quick start
+
+```ts
 import { afterEach, expect, test } from "vitest";
-import { cleanup, getComponentRenderer } from "react-contract-renderer";
+import { cleanup, getComponentRenderer } from "@avgz/react-contract-renderer";
 
 afterEach(cleanup);
 
-const renderer = getComponentRenderer(AccountPage, {
-  accountId: "default",
-});
+const renderer = getComponentRenderer(AccountPage, { accountId: "default" });
 
 test("passes the active account to its panel", () => {
   const { subject } = renderer.shallow({ accountId: "active" });
@@ -19,81 +130,24 @@ test("passes the active account to its panel", () => {
 });
 ```
 
-`find(AccountPanel)` infers `AccountPanel`'s props, so both the prop name and asserted value remain checked by TypeScript.
+`find(AccountPanel)` infers `AccountPanel`'s props, so TypeScript checks both the prop name and the asserted value.
 
-## Why use it?
+Use `mount()` to check DOM output:
 
-A relationship between two components can be an application contract even when it is not directly visible in the DOM. Inferring that relationship from a fully rendered tree makes failures broader: a test for `App` passing `session` to `Header` can also fail because of a change several components lower in the tree.
+```ts
+const session = getComponentRenderer(SaveButton, { label: "Save" }).mount();
 
-React Contract Renderer lets each test stop at the boundary it owns:
-
-- **Local failures:** shallow rendering runs the target but keeps custom children opaque. A broken child cannot fail its parent's contract test.
-- **Typed prop assertions:** component identity drives `find()`, `props()`, and `prop()` inference. Renamed or incompatible props fail type checking.
-- **Modern shallow rendering:** hooks, effects, state updates, context, fragments, `memo`, `forwardRef`, lazy components, and class lifecycles run in the target component.
-- **One query API:** the same live `Subject` methods work for shallow and DOM-mounted sessions.
-- **Deliberate lifecycle control:** sessions initialize lazily, accept provider wrappers, preserve state across `rerender()`, expose async `act()`, and clean up explicitly.
-- **Small surface:** query by component identity or host tag, then inspect the contract. There are no CSS-selector, event-simulation, or component-instance APIs.
-
-## Install
-
-```sh
-pnpm add -D react-contract-renderer
+expect(session.subject.find("button").getDOMNode().textContent).toBe("Save");
 ```
-
-React and React DOM are peer dependencies. The package supports matching stable versions of React 17.0.2, React 18.2–18.3, and React 19.0–19.3. Node.js 22 or newer is required.
-
-## Choose the boundary you mean to test
-
-| Question                                                                                    | Best tool                                                  |
-| ------------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
-| Does this parent render the expected child and pass the right typed props?                  | React Contract Renderer `shallow()`                        |
-| Does this component produce the expected host DOM, refs, and browser-facing attributes?     | React Contract Renderer `mount()` or React Testing Library |
-| Can a user find, operate, and understand this UI by role, name, text, focus, or form state? | React Testing Library                                      |
-| Does the complete application work in a real browser?                                       | Playwright or Cypress                                      |
-
-React Testing Library and React Contract Renderer test different contracts. Testing Library intentionally queries DOM nodes the way users encounter them. React Contract Renderer intentionally queries component identities and props. Use both when both boundaries matter; do not replace an accessibility or user-flow test with a prop assertion.
-
-### Compared with React Testing Library
-
-|                                           | React Contract Renderer                      | React Testing Library                                       |
-| ----------------------------------------- | -------------------------------------------- | ----------------------------------------------------------- |
-| Primary contract                          | Component composition and props              | User-observable DOM behavior                                |
-| Queries                                   | Component identity or intrinsic tag          | Role, accessible name, label, text, and other DOM semantics |
-| Rendering                                 | Target-only shallow render or full DOM mount | Full DOM render                                             |
-| Descendant components in the focused mode | Opaque under `shallow()`                     | Rendered                                                    |
-| Prop inference after a query              | Inferred from the selected component         | Not applicable; queries return DOM nodes                    |
-| Best failure locality                     | Parent/child interfaces                      | Visible behavior and accessibility                          |
-
-### Compared with Enzyme
-
-Enzyme established the useful idea of shallow-rendering a component as a unit and inspecting child components. React Contract Renderer keeps that narrow capability rather than recreating Enzyme's wrapper ecosystem:
-
-- component identities and intrinsic tag names instead of CSS selectors;
-- TypeScript-inferred props instead of untyped string-keyed assertions;
-- hooks and effects in shallow tests on supported modern React versions;
-- public React DOM rendering for `mount()`, with read-only, version-gated inspection;
-- no component instances, state mutation, selector language, or simulated events.
-
-It is not a drop-in Enzyme replacement.
 
 ## Rendering modes
 
-```tsx
-const renderer = getComponentRenderer(SaveButton, { label: "Save" });
+| Mode        | Use it for                                  | What runs                                            |
+| ----------- | ------------------------------------------- | ---------------------------------------------------- |
+| `shallow()` | Child components and the props they receive | The target runs. Custom child components do not run. |
+| `mount()`   | DOM output, refs, and host behavior         | The component tree renders into a DOM container.     |
 
-const shallow = renderer.shallow();
-expect(shallow.subject.find(Icon).prop("name")).toBe("save");
-
-const mounted = renderer.mount();
-expect(mounted.subject.find("button").getDOMNode().textContent).toBe("Save");
-```
-
-| Mode        | Use it for                                  | What runs                                                |
-| ----------- | ------------------------------------------- | -------------------------------------------------------- |
-| `shallow()` | Child components and the props they receive | The target runs; custom child components do not          |
-| `mount()`   | DOM output, refs, and host behavior         | The complete component tree renders into a DOM container |
-
-`mount()` requires a DOM environment such as Vitest's `jsdom` environment. Both modes render on the first observation or update, so providers can be configured before mounting:
+Both modes wait until you access `subject` to start rendering. This lets you add providers first:
 
 ```tsx
 const session = renderer.shallow().with(OuterProvider, InnerProvider);
@@ -101,7 +155,9 @@ const session = renderer.shallow().with(OuterProvider, InnerProvider);
 expect(session.subject.find(AccountPanel).exists()).toBe(true);
 ```
 
-Providers nest in argument order; the first provider is outermost.
+Providers nest in argument order; the first provider is outermost. `mount()` requires a DOM environment such as Vitest's `jsdom` environment.
+
+Register `cleanup` with your test runner's `afterEach` to unmount all sessions after each test.
 
 ## API at a glance
 
@@ -121,19 +177,33 @@ session.flush();
 session.unmount();
 ```
 
-A `Subject` is live: an existing selection reads the latest committed render after state changes or `rerender()`. Available inspections are `find`, `findAll`, `exists`, `props`, `prop`, `className`, `type`, `element`, `text`, and—after `mount()`—`getDOMNode`.
+A `Subject` is live: an existing selection reads the latest committed render after state changes or `rerender()`. Available inspections are `find`, `findAll`, `exists`, `props`, `prop`, `className`, `type`, `element`, `text`, and, after `mount()`, `getDOMNode`.
 
-Register global cleanup with the test runner:
+## Why choose it over React Testing Library?
 
-```ts
-afterEach(cleanup);
-```
+[React Testing Library](https://testing-library.com/docs/react-testing-library/intro/) is a good choice for testing individual UI components. Use it to check roles, text, form input, and focus.
+
+Use React Contract Renderer when you need to:
+
+- Check that a parent renders a specific child with the expected, type-checked props.
+- Run a component's own hooks and effects during a shallow test.
+- Query components in both shallow and mounted tests with the same `Subject` API.
+
+Both libraries can earn a place in the same test suite. Use RTL for user-facing behavior and accessibility checks. Use React Contract Renderer for component relationships and props that your application relies on.
+
+## How is it different from Enzyme?
+
+Enzyme established the useful idea of shallow-rendering a component as a unit and inspecting its children. React Contract Renderer keeps that narrow capability instead of recreating Enzyme's wrapper API.
+
+Queries use component identities or intrinsic tag names rather than CSS selectors. Props are inferred by TypeScript rather than exposed through untyped string keys. Hooks and effects run in shallow tests on supported React versions.
+
+There are no component-instance, state-mutation, selector-language, or simulated-event APIs. This is not a drop-in Enzyme replacement.
 
 ## Benchmarks
 
-The included benchmark measures complete render-and-cleanup operations against `@testing-library/react/pure`. Each fixture gets 60 warm-ups, then reports the median of 11 rounds. The three microbenchmarks run 1,000 operations per round; the application fixture runs 25 because each full render commits thousands of DOM nodes. Order rotates between implementations, and shallow, mount, and RTL output is checked before timing.
+The included benchmark compares complete render-and-cleanup operations with `@testing-library/react/pure`. Each fixture gets 60 warm-ups and reports the median of 11 rounds. The three small fixtures run 1,000 operations per round. The application fixture runs 25 because each full render commits thousands of DOM nodes. The benchmark checks each renderer's output before timing it.
 
-The large fixture is a self-contained extraction modeled on `strategy-game-3`'s largest board and its `GameBoard` boundaries: a 20×24 map with three layers, 1,440 material tiles, 48 units, 30 mechanisms, 96 environmental effects, fog of war, placed items, corpses, portraits, layer navigation, an action bar, a message log, a 24-item inventory dialog, and a combat forecast. It preserves the production component shape and scale without making this package depend on a sibling application.
+The application fixture is modeled on a large strategy game's board: a 20×24 map with three layers, 1,440 material tiles, units, mechanisms, environmental effects, fog of war, placed items, portraits, navigation, an action bar, a message log, an inventory dialog, and a combat forecast.
 
 One local run on an Apple M4 Pro with Node 24.11.1, React 19.3.0, and jsdom 26.1.0 produced:
 
@@ -144,9 +214,9 @@ One local run on an Apple M4 Pro with Node 24.11.1, React 19.3.0, and jsdom 26.1
 | 24-child tree        | 0.033 ms |  0.222 ms |              0.242 ms |     7.3× faster |     8% faster |
 | Strategy game board  | 0.112 ms | 42.717 ms |             42.385 ms |     377× faster |   0.8% slower |
 
-The important bit here is the shape of the scaling vs. just the flat duration. On the strategy-game workload, shallow rendering executes `GameBoard` (think chess board with materials, units, ASCII effects like fire and smoke, etc.) and records its immediate component contracts while leaving the thousands of descendant nodes opaque. Mount and RTL both render the complete application tree and land within 1% of each other which is to be expected. The command enforces that shallow remains faster than RTL and that mount stays within 10% of the RTL baseline; the mount margin accommodates normal timing noise between two full DOM renderers.
+On the application fixture, shallow rendering runs `GameBoard` and records its immediate component contracts without rendering the thousands of descendant nodes. Mount and RTL both render the complete tree and finish within 1% of each other. The benchmark requires shallow to remain faster than RTL and allows mount a 10% margin around RTL for timing noise.
 
-Reproduce the measurement on your hardware:
+Run it on your hardware:
 
 ```sh
 pnpm install --frozen-lockfile
@@ -156,15 +226,8 @@ pnpm benchmark
 
 See [`scripts/benchmark.mjs`](scripts/benchmark.mjs) for the measurement method and [`scripts/benchmark-fixtures/strategy-game.mjs`](scripts/benchmark-fixtures/strategy-game.mjs) for the application fixture.
 
-## Inspirations
-
-- [Enzyme's shallow renderer](https://enzymejs.github.io/enzyme/docs/api/shallow.html) demonstrated the value of testing a component without indirectly asserting on child implementations.
-- [Testing Library's guiding principles](https://testing-library.com/docs/guiding-principles/) define the complementary user-facing boundary. React Contract Renderer is intentionally for the component interface checks those principles exclude.
-- [React's former shallow and test renderers](https://react.dev/warnings/react-test-renderer) showed the usefulness of non-DOM component inspection. They are now deprecated; this package provides a smaller, version-tested contract API rather than exposing their renderer trees.
-- Akin's law #15: “The ability to improve a design occurs primarily at the interfaces. This is also the prime location for screwing it up.”
-
 ## Scope and tradeoffs
 
 Use this library when component composition is a contract you deliberately want to maintain. Do not use it to prove accessibility, styling, layout, real browser behavior, or an end-to-end user flow.
 
-Shallow rendering couples a test to component boundaries. That coupling is the feature here, but it should be intentional: test stable application interfaces, not every wrapper or incidental implementation detail.
+Shallow rendering couples a test to component boundaries. That coupling is the feature, but it should be intentional: test stable application interfaces, not every wrapper or incidental implementation detail.

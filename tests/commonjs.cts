@@ -1,4 +1,4 @@
-import api = require('react-contract-renderer');
+import api = require('@avgz/react-contract-renderer');
 
 function Component(_props: { name: string }) {
   return null;

@@ -1,6 +1,6 @@
 import * as React from 'react';
 import type { ComponentProps, ReactElement } from 'react';
-import { getComponentRenderer } from 'react-contract-renderer';
+import { getComponentRenderer } from '@avgz/react-contract-renderer';
 
 function Child(_props: { count: number; onChange: (value: number) => void }) {
   return null;

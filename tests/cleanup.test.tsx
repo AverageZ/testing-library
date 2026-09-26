@@ -6,7 +6,7 @@ import {
   cleanup,
   getComponentRenderer,
   type RenderSession,
-} from 'react-contract-renderer';
+} from '@avgz/react-contract-renderer';
 
 const modes = ['shallow', 'mount'] as const;
 

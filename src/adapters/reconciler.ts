@@ -97,7 +97,7 @@ function getReconciler(): Reconciler {
   let priority = 0;
   const config: Record<string, unknown> = {
     rendererVersion: '0.1.0',
-    rendererPackageName: 'react-contract-renderer',
+    rendererPackageName: '@avgz/react-contract-renderer',
     isPrimaryRenderer: false,
     supportsMutation: true,
     supportsPersistence: false,

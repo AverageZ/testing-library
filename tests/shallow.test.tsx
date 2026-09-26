@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { afterEach, expect, test } from 'vitest';
-import { cleanup, getComponentRenderer } from 'react-contract-renderer';
+import { cleanup, getComponentRenderer } from '@avgz/react-contract-renderer';
 
 afterEach(cleanup);
 

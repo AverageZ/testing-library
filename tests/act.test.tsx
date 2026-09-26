@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import * as React from 'react';
 import { afterEach, describe, expect, test } from 'vitest';
-import { cleanup, getComponentRenderer } from 'react-contract-renderer';
+import { cleanup, getComponentRenderer } from '@avgz/react-contract-renderer';
 
 const modes = ['shallow', 'mount'] as const;
 const actEnvironment = 'IS_REACT_ACT_ENVIRONMENT';

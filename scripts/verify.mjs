@@ -42,7 +42,7 @@ run('pnpm', ['pack', '--pack-destination', workspace]);
 const packageJson = JSON.parse(await readFile('package.json', 'utf8'));
 const archive = join(
   workspace,
-  `${packageJson.name}-${packageJson.version}.tgz`,
+  `${packageJson.name.replace(/^@/, '').replace('/', '-')}-${packageJson.version}.tgz`,
 );
 const common = Object.fromEntries(
   await Promise.all(
@@ -77,7 +77,7 @@ for (const fixture of matrix) {
         type: 'module',
         dependencies: {
           ...common,
-          'react-contract-renderer': `file:${archive}`,
+          '@avgz/react-contract-renderer': `file:${archive}`,
           react: fixture.react,
           'react-dom': fixture.react,
           '@testing-library/react': fixture.rtl,
@@ -102,6 +102,13 @@ for (const fixture of matrix) {
   await cp('tests', join(directory, 'tests'), { recursive: true });
   await cp('vitest.config.ts', join(directory, 'vitest.config.ts'));
   await cp('scripts/benchmark.mjs', join(directory, 'benchmark.mjs'));
+  await cp(
+    'scripts/benchmark-fixtures',
+    join(directory, 'benchmark-fixtures'),
+    {
+      recursive: true,
+    },
+  );
   await cp('scripts/package-check.mjs', join(directory, 'package-check.mjs'));
   const config = JSON.parse(await readFile('tsconfig.json', 'utf8'));
   config.include = [
