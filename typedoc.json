@@ -1,6 +1,7 @@
 {
   "$schema": "https://typedoc.org/schema.json",
   "entryPoints": ["src/index.ts"],
+  "tsconfig": "tsconfig.build.json",
   "excludeInternal": true,
   "name": "React Contract Renderer",
   "out": "docs-site",
